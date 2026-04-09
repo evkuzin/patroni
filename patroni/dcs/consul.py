@@ -13,7 +13,7 @@ from urllib.parse import quote, urlencode, urlparse
 
 import urllib3
 
-from consul import base, Check, ConsulException, NotFound
+from consul import ACLPermissionDenied, base, Check, ConsulException, NotFound
 from urllib3.exceptions import HTTPError
 
 from ..exceptions import DCSError
@@ -633,7 +633,11 @@ class Consul(AbstractDCS):
         retry = kwargs.pop('retry', None)
         try:
             return retry(method, *args, **kwargs) if retry else method(*args, **kwargs)
-        except (RetryFailedError, InvalidSession, HTTPException, HTTPError, socket.error, socket.timeout) as e:
+        except ACLPermissionDenied as e:
+            logger.error('Consul ACL permission denied: %s', e)
+            raise ConsulError(e)
+        except (RetryFailedError, InvalidSession,
+                HTTPException, HTTPError, socket.error, socket.timeout) as e:
             raise ConsulError(e)
         except ConsulException:
             raise ReturnFalseException
